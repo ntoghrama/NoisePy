@@ -37,10 +37,10 @@ NOTE:
 tt0=time.time()
 
 # data/file paths
-rootpath  = '/Users/chengxin/Documents/Kanto'                           # absolute path for your project
+rootpath  = '/Users/chengxin/Documents/ANU/NoisePy_example/LP'                           # absolute path for your project
 RAWDATA   = os.path.join(rootpath,'RAW_DATA')                           # dir where mseed/SAC files are located
-DATADIR   = os.path.join(rootpath,'Kanto_sac')                          # dir where cleaned data in ASDF format are going to be outputted
-locations = os.path.join(rootpath,'station.txt')                        # station info including network,station,channel,latitude,longitude,elevation
+DATADIR   = os.path.join(rootpath,'sac_data')                          # dir where cleaned data in ASDF format are going to be outputted
+locations = os.path.join(RAWDATA,'station.csv')                        # station info including network,station,channel,latitude,longitude,elevation
 if not os.path.isfile(locations): 
     raise ValueError('Abort! station info is needed for this script')
 locs = pd.read_csv(locations)
@@ -48,7 +48,7 @@ nsta = len(locs)
 
 # useful parameters for cleaning the data
 input_fmt = 'sac'                                                       # input file format between 'sac' and 'mseed' 
-samp_freq = 10                                                          # targeted sampling rate
+samp_freq = 20                                                          # targeted sampling rate
 stationxml= False                                                       # station.XML file exists or not
 rm_resp   = 'no'                                                        # select 'no' to not remove response and use 'inv','spectrum','RESP', or 'polozeros' to remove response
 respdir   = os.path.join(rootpath,'resp')                               # directory where resp files are located (required if rm_resp is neither 'no' nor 'inv')
@@ -58,13 +58,13 @@ flag      = False                                                       # print 
 
 # having this file saves a tons of time: see L95-126 for why
 wiki_file = os.path.join(rootpath,'allfiles_time.txt')                  # file containing the path+name for all sac/mseed files and its start-end time      
-allfiles_path = os.path.join(DATADIR,'*/*'+input_fmt)                   # make sure all sac/mseed files can be found through this format
+allfiles_path = os.path.join(DATADIR,'*'+input_fmt)                   # make sure all sac/mseed files can be found through this format
 messydata = False                                                       # set this to False when daily noise data is well sorted 
 
 # targeted time range
-start_date = ['2010_12_06_0_0_0']                                       # start date of local data
-end_date   = ['2010_12_16_0_0_0']                                       # end date of local data
-inc_hours  = 8                                                          # sac/mseed file length for a continous recording
+start_date = ['2019_07_16_0_0_0']                                       # start date of local data
+end_date   = ['2019_07_17_0_0_0']                                       # end date of local data
+inc_hours  = 24                                                          # sac/mseed file length for a continous recording
 
 # get rough estimate of memory needs to ensure it now below up in S1
 cc_len    = 1800                                                        # basic unit of data length for fft (s)
@@ -169,7 +169,7 @@ for ick in range(rank,splits,size):
     for ista in range(nsta):
 
         # the station info:
-        station = locs.iloc[ista]['station']
+        station = locs.iloc[ista]['station'].astype(str)
         network = locs.iloc[ista]['network']
         comp    = locs.iloc[ista]['channel']
         if flag: print("working on station %s channel %s" % (station,comp)) 

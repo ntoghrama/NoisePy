@@ -45,33 +45,33 @@ Enjoy the NoisePy journey!
 tt0=time.time()
 
 # paths and filenames
-rootpath = '/Users/chengxin/Documents/SCAL'                     # roothpath for the project
+rootpath = '/Users/chengxin/Documents/ANU/Antarctic/ZG'                     # roothpath for the project
 direc  = os.path.join(rootpath,'RAW_DATA')                      # where to store the downloaded data
 dlist  = os.path.join(direc,'station.txt')                      # CSV file for station location info
 
 # download parameters
-client    = Client('SCEDC')                                     # client/data center. see https://docs.obspy.org/packages/obspy.clients.fdsn.html for a list
-down_list = False                                               # download stations from a pre-compiled list or not
+client    = Client('IRIS')                                     # client/data center. see https://docs.obspy.org/packages/obspy.clients.fdsn.html for a list
+down_list = True                                               # download stations from a pre-compiled list or not
 flag      = False                                               # print progress when running the script; recommend to use it at the begining
 samp_freq = 20                                                  # targeted sampling rate at X samples per seconds 
 rm_resp   = 'no'                                                # select 'no' to not remove response and use 'inv','spectrum','RESP', or 'polozeros' to remove response
 respdir   = os.path.join(rootpath,'resp')                       # directory where resp files are located (required if rm_resp is neither 'no' nor 'inv')
 freqmin   = 0.05                                                # pre filtering frequency bandwidth
-freqmax   = 2                                                   # note this cannot exceed Nquist freq                         
+freqmax   = 8                                                   # note this cannot exceed Nquist freq                         
 
 # targeted region/station information: only needed when down_list is False
 lamin,lamax,lomin,lomax = 32.9,35.9,-120.7,-118.5               # regional box: min lat, min lon, max lat, max lon (-114.0)
 chan_list = ["BHE","BHN","BHZ"]                                             # channel if down_list=false (format like "HN?" not work here)
 net_list  = ["CI"]                                              # network list 
 sta_list  = ["*"]                                               # station (using a station list is way either compared to specifying stations one by one)
-start_date = ["2016_07_01_0_0_0"]                               # start date of download
-end_date   = ["2016_07_02_0_0_0"]                               # end date of download
-inc_hours  = 24                                                 # length of data for each request (in hour)
+start_date = ["2004_12_05_0_0_0"]                               # start date of download
+end_date   = ["2004_12_17_0_0_0"]                               # end date of download
+inc_hours  = 8                                                 # length of data for each request (in hour)
 ncomp      = len(chan_list)
 
 # get rough estimate of memory needs to ensure it now below up in S1
-cc_len    = 1800                                                # basic unit of data length for fft (s)
-step      = 450                                                 # overlapping between each cc_len (s)
+cc_len    = 600                                                # basic unit of data length for fft (s)
+step      = 150                                                 # overlapping between each cc_len (s)
 MAX_MEM   = 5.0                                                 # maximum memory allowed per core in GB
 
 ##################################################
