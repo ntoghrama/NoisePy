@@ -663,7 +663,14 @@ def correlate(fft1_smoothed_abs,fft2,D,Nfft,dataS_t):
         s_corr = np.real(np.fft.ifftshift(scipy.fftpack.ifft(crap, Nfft, axis=0)))
 
     # trim the CCFs in [-maxlag maxlag]
-    t = np.arange(-Nfft2+1, Nfft2)*dt
+    # #####################################
+    # t = np.arange(-Nfft2+1, Nfft2)*dt
+    # the t vector is defined incorrectly in the previous version, as the starting time window 
+    # should start from -Nfft2*dt rather than -Nfft2+1. This causes the cross-correlation to shift
+    # 1 sample point to the positive axis, which is particularly problematic for long-period studies. 
+    # this bug can not be found without Dr. Xingli Fan's help! Thank you Xingli! 
+    ########################################
+    t = np.arange(-Nfft2,Nfft2)*dt
     ind = np.where(np.abs(t) <= maxlag)[0]
     if s_corr.ndim==1:
         s_corr = s_corr[ind]
