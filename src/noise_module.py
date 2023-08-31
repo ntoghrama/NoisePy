@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import glob
 import copy
@@ -36,8 +37,8 @@ several utility functions are modified based on https://github.com/tclements/noi
 '''
 
 ####################################################
-############## CORE FUNCTIONS ######################
-####################################################
+# ############# CORE FUNCTIONS ######################
+# ###################################################
 
 def get_event_list(str1,str2,inc_hours):
     '''
@@ -108,7 +109,7 @@ def make_timestamps(prepro_para):
             # get VERY precise trace-time from the header
             for ii in range(nfiles):
                 try:
-                    tr = obspy.read(allfiles[ii])
+                    tr = obspy.read(allfiles[ii],headonly=True)     # a suggestion by Han Wu from Peking Uni to read headonly to boost speed 
                     all_stimes[ii,0] = tr[0].stats.starttime-obspy.UTCDateTime(1970,1,1)
                     all_stimes[ii,1] = tr[0].stats.endtime-obspy.UTCDateTime(1970,1,1)
                 except Exception as e:
@@ -326,8 +327,10 @@ def stats2inv(stats,prepro_para,locs=None):
             dip=stats.sac["cmpinc"],
             sample_rate=stats.sampling_rate)
 
-    elif input_fmt == 'mseed':
-        ista=locs[locs['station']==stats.station].index.values.astype('int64')[0]
+    elif input_fmt == 'mseed' or input_fmt == 'SAC':
+        sta = pd.Series(locs['station'],dtype='string')
+        ista=sta[sta==stats.station].index.values.astype('int64')[0]
+        #ista=locs[locs['station']==stats.station].index.values.astype('int64')[0]
 
         net = Network(
             # This is the network code according to the SEED standard.
@@ -900,6 +903,14 @@ def stacking(cc_array,cc_time,cc_ngood,stack_para):
             allstacks1 = pws(cc_array,samp_freq)
         elif smethod == 'robust':
             allstacks1,w,nstep = robust_stack(cc_array,0.001)
+        elif smethod[:-1] == 'selective':
+            allstacks = selective_stack1(cc_array,0.7)
+            if smethod == "selective0":
+                allstacks1 = allstacks[0]
+            elif smethod == "selective1":
+                allstacks1 = allstacks[1]
+            else:
+                allstacks1 = allstacks[2]
         elif smethod == 'auto_covariance':
             allstacks1 = adaptive_filter(cc_array,1)
         elif smethod == 'nroot':
@@ -1073,8 +1084,8 @@ def rotation(bigstack,parameters,locs,flag):
 
 
 ####################################################
-############## UTILITY FUNCTIONS ###################
-####################################################
+# ############# UTILITY FUNCTIONS ###################
+# ###################################################
 
 def check_sample_gaps(stream,date_info):
     """
@@ -1390,34 +1401,6 @@ def robust_stack(cc_array,epsilon):
     return newstack, w, nstep
 
 
-
-def selective_stack(cc_array,epsilon):
-    """
-    this is a selective stacking algorithm developed by Jared Bryan.
-
-    PARAMETERS:
-    ----------------------
-    cc_array: numpy.ndarray contains the 2D cross correlation matrix
-    epsilon: residual threhold to quit the iteration
-    RETURNS:
-    ----------------------
-    newstack: numpy vector contains the stacked cross correlation
-
-    Written by Marine Denolle
-    """
-    res  = 9E9  # residuals
-    cc = np.ones(cc_array.shape[0])
-    nstep=0
-    newstack = np.mean(cc_array,axis=0)
-    for i in range(cc_array.shape[0]):
-    	CC[i] = np.sum(np.multiply(stack,cc_array[i,:].T))
-    ik = np.where(CC>=epsilon)
-    newstack = np.mean(cc_array[ik,:],axis=0)
-
-    return newstack, cc
-
-
-
 def whiten(data, fft_para):
     '''
     This function takes 1-dimensional timeseries array, transforms to frequency domain using fft,
@@ -1441,7 +1424,7 @@ def whiten(data, fft_para):
     delta   = fft_para['dt']
     freqmin = fft_para['freqmin']
     freqmax = fft_para['freqmax']
-    smooth_N  = fft_para['smooth_N']
+    smooth_N  = fft_para['smoothspect_N']
     freq_norm = fft_para['freq_norm']
 
     # Speed up FFT by padding to optimal size for FFTPACK
@@ -1646,7 +1629,7 @@ def selective_stack(cc_array,epsilon,cc_th):
     newstack: numpy vector contains the stacked cross correlation
     nstep: np.int, total number of iterations for the stacking
 
-    Originally ritten by Marine Denolle 
+    Originally written by Marine Denolle 
     Modified by Chengxin Jiang @Harvard (Oct2020)
     '''
     if cc_array.ndim == 1:
@@ -1675,6 +1658,49 @@ def selective_stack(cc_array,epsilon,cc_th):
     return newstack, nstep
 
 
+def selective_stack1(cc_array,cc_th):
+    ''' 
+    this is a selective stacking algorithm developed by Jared Bryan/Kurama Okubo.
+
+    PARAMETERS:
+    ----------------------
+    cc_array: numpy.ndarray contains the 2D cross correlation matrix
+    cc_th: numpy.float, threshold of correlation coefficient to be selected
+
+    RETURNS:
+    ----------------------
+    newstack: numpy vector contains the stacked cross correlation
+    nstep: np.int, total number of iterations for the stacking
+
+    Originally written by Marine Denolle 
+    Modified by Chengxin Jiang @Harvard (Oct2020)
+    '''
+    if cc_array.ndim == 1:
+        print('2D matrix is needed for nroot_stack')
+        return cc_array
+    N,M = cc_array.shape 
+    stacks = np.zeros(shape=(3,M),dtype=np.float32)
+
+    cof  = np.zeros(N,dtype=np.float32)
+    newstack = np.mean(cc_array,axis=0)
+
+    for ii in range(N):
+        cof[ii] = np.corrcoef(newstack, cc_array[ii,:])[0, 1]
+    
+    # find good waveforms
+    indx1 = np.where(cof>=cc_th)[0]
+    indx2 = np.where(cof<cc_th)[0]
+    if not len(indx2):
+        print('cannot find bad waveforms for selective stacking')
+        stacks[2] = np.zeros(M,dtype=np.float32)
+    else:
+        stacks[2] = np.mean(cc_array[indx2],axis=0)
+    stacks[0] = np.mean(cc_array,axis=0)
+    stacks[1] = np.mean(cc_array[indx1],axis=0)
+
+    return stacks
+
+
 def get_cc(s1,s_ref):
     # returns the correlation coefficient between waveforms in s1 against reference
     # waveform s_ref.
@@ -1687,8 +1713,8 @@ def get_cc(s1,s_ref):
 
 
 ########################################################
-################ MONITORING FUNCTIONS ##################
-########################################################
+# ############### MONITORING FUNCTIONS ##################
+# #######################################################
 
 '''
 a compilation of all available core functions for computing phase delays based on ambient noise interferometry
@@ -2384,8 +2410,8 @@ def wtdtw_allfreq(ref,cur,allfreq,para,maxLag,b,direction,dj=1/12,s0=-1,J=-1,wvn
 
 
 #############################################################
-################ MONITORING UTILITY FUNCTIONS ###############
-#############################################################
+# ############### MONITORING UTILITY FUNCTIONS ###############
+# ############################################################
 
 '''
 below are assembly of the monitoring utility functions called by monitoring functions
@@ -2775,8 +2801,8 @@ def wct_modified(y1, y2, dt, dj=1/12, s0=-1, J=-1, sig=True, significance_level=
 
 
 ################################################################
-################ DISPERSION EXTRACTION FUNCTIONS ###############
-################################################################
+# ############### DISPERSION EXTRACTION FUNCTIONS ###############
+# ###############################################################
 
 # function to extract the dispersion from the image
 def extract_dispersion(amp,per,vel):

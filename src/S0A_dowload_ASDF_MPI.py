@@ -40,18 +40,30 @@ Enjoy the NoisePy journey!
 '''
 
 #########################################################
-################ PARAMETER SECTION ######################
-#########################################################
+# ############### PARAMETER SECTION ######################
+# ########################################################
 tt0=time.time()
 
 # paths and filenames
-rootpath = '/Users/chengxin/Documents/ANU/Antarctic/ZG'                     # roothpath for the project
+rootpath = '/Users/chengxin/Documents/ANU/NoisePy_example/SCAL'                     # roothpath for the project
 direc  = os.path.join(rootpath,'RAW_DATA')                      # where to store the downloaded data
 dlist  = os.path.join(direc,'station.txt')                      # CSV file for station location info
 
+#***************************************************
+# below is a snippet of example station list
+
+#network,station,channel,latitude,longitude,elevation
+#CI,ARV,BHE,35.1269,-118.83009,258.0
+#CI,ARV,BHN,35.1269,-118.83009,258.0
+#CI,ARV,BHZ,35.1269,-118.83009,258.0
+#CI,BAK,BHE,35.34444,-119.104446,116.0
+#CI,BAK,BHN,35.34444,-119.104446,116.0
+#CI,BAK,BHZ,35.34444,-119.104446,116.0
+#***************************************************
+
 # download parameters
 client    = Client('IRIS')                                     # client/data center. see https://docs.obspy.org/packages/obspy.clients.fdsn.html for a list
-down_list = True                                               # download stations from a pre-compiled list or not
+down_list = False                                               # download stations from a pre-compiled list or not
 flag      = False                                               # print progress when running the script; recommend to use it at the begining
 samp_freq = 20                                                  # targeted sampling rate at X samples per seconds 
 rm_resp   = 'no'                                                # select 'no' to not remove response and use 'inv','spectrum','RESP', or 'polozeros' to remove response
@@ -113,6 +125,8 @@ if down_list:
     chan = list(locs.iloc[:]['channel'])
     net  = list(locs.iloc[:]['network'])
     sta  = list(locs.iloc[:]['station'])
+    # a solution to deal with station named with pure numbers by beyondTaoLei @Dec2021
+    sta  = [str(i) for i in sta]
     lat  = list(locs.iloc[:]['latitude'])
     lon  = list(locs.iloc[:]['longitude'])
 
@@ -174,8 +188,8 @@ if memory_size > MAX_MEM:
 
 
 ########################################################
-#################DOWNLOAD SECTION#######################
-########################################################
+# ################DOWNLOAD SECTION#######################
+# #######################################################
 
 #--------MPI---------
 comm = MPI.COMM_WORLD

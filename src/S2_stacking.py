@@ -38,20 +38,20 @@ tt0=time.time()
 ########################################
 
 # absolute path parameters
-rootpath  = '/Users/chengxin/Documents/SCAL'                        # root path for this data processing
-CCFDIR    = os.path.join(rootpath,'CCF')                            # dir where CC data is stored
-STACKDIR  = os.path.join(rootpath,'STACK')                          # dir where stacked data is going to
+rootpath  = '/scratch/ju23/cj2270/AU'                            # root path for this data processing
+CCFDIR    = os.path.join(rootpath,'ACF')                            # dir where CC data is stored
+STACKDIR  = os.path.join(rootpath,'STACK_ACF')                          # dir where stacked data is going to
 locations = os.path.join(rootpath,'RAW_DATA/station.txt')           # station info including network,station,channel,latitude,longitude,elevation
 if not os.path.isfile(locations): 
     raise ValueError('Abort! station info is needed for this script')
 
 # define new stacking para
-keep_substack= False                                                # keep all sub-stacks in final ASDF file
+keep_substack= True                                                # keep all sub-stacks in final ASDF file
 flag         = True                                                 # output intermediate args for debugging
-stack_method = 'linear'                                             # linear, pws, robust, nroot, selective, auto_covariance or all
+stack_method = 'linear'                                          # linear, pws, robust, nroot, selective, auto_covariance or all
 
 # new rotation para
-rotation     = True                                                 # rotation from E-N-Z to R-T-Z 
+rotation     = False                                                 # rotation from E-N-Z to R-T-Z 
 correction   = False                                                # angle correction due to mis-orientation
 if rotation and correction:
     corrfile = os.path.join(rootpath,'meso_angles.txt')             # csv file containing angle info to be corrected
@@ -59,7 +59,7 @@ if rotation and correction:
 else: locs = []
 
 # maximum memory allowed per core in GB
-MAX_MEM = 4.0
+MAX_MEM = 8.0
 
 ##################################################
 # we expect no parameters need to be changed below
@@ -163,6 +163,7 @@ for ipair in range (rank,splits,size):
     if (ssta==rsta and snet==rnet):
         fauto=1
     else:
+        continue
         fauto=0
 
     # continue when file is done
@@ -247,7 +248,7 @@ for ipair in range (rank,splits,size):
     if flag:print('loading CCF data takes %6.2fs'%(t1-t0))
 
     # continue when there is no data or for auto-correlation
-    if iseg <= 1 or fauto==1: continue
+    if iseg <= 1 and fauto==1: continue
     outfn = pairs_all[ipair]+'.h5'         
     if flag:print('ready to output to %s'%(outfn))                     
 

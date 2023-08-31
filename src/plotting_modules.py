@@ -767,7 +767,7 @@ def plot_all_moveout_1D_9comp(sfiles,sta,dtype,freqmin,freqmax,disp_lag=None,sav
     indx2 = indx1+2*int(disp_lag/dt)+1
 
     # load cc and parameter matrix
-    mdist = 80
+    mdist = 120
     plt.figure(figsize=(14,10.5))
     for ic in range(len(ccomp)):
         comp = ccomp[ic]
@@ -793,7 +793,7 @@ def plot_all_moveout_1D_9comp(sfiles,sta,dtype,freqmin,freqmax,disp_lag=None,sav
             
             if dist>mdist:continue
             tdata = bandpass(tdata,freqmin,freqmax,int(1/dt),corners=4, zerophase=True)
-            tdata /= np.max(tdata,axis=0)
+            tdata /= 0.5*np.max(tdata,axis=0)
 
             if iflip:
                 plt.plot(tt,np.flip(tdata,axis=0)+dist,'k',linewidth=0.8)

@@ -13,7 +13,7 @@ add an option to output the CCFs into txt files for image transform analysis
 '''
 
 #------absolute path to output data-------
-STACKDIR = '/Users/chengxin/Documents/SCAL/STACK'
+STACKDIR = "/noise2/chengxin/OK/STACK_rma"
 ALLFILES = glob.glob(os.path.join(STACKDIR,'*/*.h5'))
 COMP_OUT = ['ZZ','RR','TT']
 #COMP_OUT = ['ZR','ZT','ZZ','TR','TT','TZ','RR','RT','RZ']

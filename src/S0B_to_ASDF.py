@@ -37,17 +37,17 @@ NOTE:
 tt0=time.time()
 
 # data/file paths
-rootpath  = '/Users/chengxin/Documents/ANU/NoisePy_example/LP'                           # absolute path for your project
+rootpath  = '/Users/chengxin/Documents/ANU/NoisePy_example/SD'                           # absolute path for your project
 RAWDATA   = os.path.join(rootpath,'RAW_DATA')                           # dir where mseed/SAC files are located
-DATADIR   = os.path.join(rootpath,'sac_data')                          # dir where cleaned data in ASDF format are going to be outputted
-locations = os.path.join(RAWDATA,'station.csv')                        # station info including network,station,channel,latitude,longitude,elevation
+DATADIR   = os.path.join(rootpath,'SAC')                          # dir where cleaned data in ASDF format are going to be outputted
+locations = os.path.join(RAWDATA,'station.txt')                        # station info including network,station,channel,latitude,longitude,elevation
 if not os.path.isfile(locations): 
     raise ValueError('Abort! station info is needed for this script')
 locs = pd.read_csv(locations)
 nsta = len(locs)
 
 # useful parameters for cleaning the data
-input_fmt = 'sac'                                                       # input file format between 'sac' and 'mseed' 
+input_fmt = 'SAC'                                                       # input file format between 'sac' and 'mseed' 
 samp_freq = 20                                                          # targeted sampling rate
 stationxml= False                                                       # station.XML file exists or not
 rm_resp   = 'no'                                                        # select 'no' to not remove response and use 'inv','spectrum','RESP', or 'polozeros' to remove response
@@ -59,11 +59,12 @@ flag      = False                                                       # print 
 # having this file saves a tons of time: see L95-126 for why
 wiki_file = os.path.join(rootpath,'allfiles_time.txt')                  # file containing the path+name for all sac/mseed files and its start-end time      
 allfiles_path = os.path.join(DATADIR,'*'+input_fmt)                   # make sure all sac/mseed files can be found through this format
-messydata = False                                                       # set this to False when daily noise data is well sorted 
+messydata = True                                                       # set this to False when daily noise data directory is stored in sub-directory of Event_year_month_day 
+ncomp     = 1
 
 # targeted time range
-start_date = ['2019_07_16_0_0_0']                                       # start date of local data
-end_date   = ['2019_07_17_0_0_0']                                       # end date of local data
+start_date = ['2021_06_14_0_0_0']                                       # start date of local data
+end_date   = ['2021_06_15_0_0_0']                                       # end date of local data
 inc_hours  = 24                                                          # sac/mseed file length for a continous recording
 
 # get rough estimate of memory needs to ensure it now below up in S1
@@ -91,8 +92,9 @@ prepro_para = {'RAWDATA':RAWDATA,
                'allfiles_path':allfiles_path,
                'cc_len':cc_len,
                'step':step,
+               'ncomp':ncomp,
                'MAX_MEM':MAX_MEM}
-metadata = os.path.join(DATADIR,'download_info.txt') 
+metadata = os.path.join(RAWDATA,'download_info.txt') 
 
 ##########################################################
 #################PROCESSING SECTION#######################
@@ -109,7 +111,14 @@ if rank == 0:
     if not os.path.isdir(DATADIR):
         os.mkdir(DATADIR)
     if not os.path.isdir(RAWDATA):
-        raise ValueError('Abort! no path of %s exists for RAWDATA'%RAWDATA)
+        print('no path of %s exists for',RAWDATA)
+        os.mkdir(RAWDATA)
+
+    # check station list
+    if not os.path.isfile(locations): 
+        raise ValueError('Abort! station info is needed for this script')
+    locs = pd.read_csv(locations)
+    nsta = len(locs)
 
     # output parameter info
     fout = open(metadata,'w')
@@ -196,15 +205,17 @@ for ick in range(rank,splits,size):
         t1=time.time()
         inv1   = noise_module.stats2inv(source[0].stats,prepro_para,locs=locs)      
         tr = noise_module.preprocess_raw(source,inv1,prepro_para,date_info)
-        if np.all(tr[0].data==0):continue
+        if np.all(tr[0].data==0) or len(tr)==0:
+            continue
         t2 = time.time()
         if flag:print('pre-processing takes %6.2fs'%(t2-t1))
 
         # jump if no good data left
-        if not len(tr):continue
+        if not len(tr):
+            continue
 
         # ready for output
-        ff=os.path.join(DATADIR,all_chunk[ick]+'T'+all_chunk[ick+1]+'.h5')
+        ff=os.path.join(RAWDATA,all_chunk[ick]+'T'+all_chunk[ick+1]+'.h5')
         if not os.path.isfile(ff):
             with pyasdf.ASDFDataSet(ff,mpi=False,compression="gzip-3",mode='w') as ds:
                 pass

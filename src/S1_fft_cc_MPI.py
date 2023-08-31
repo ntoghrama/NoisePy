@@ -46,9 +46,9 @@ tt0=time.time()
 ########################################
 
 # absolute path parameters
-rootpath  = '/Users/chengxin/Documents/SCAL'                                # root path for this data processing
+rootpath  = '/Users/chengxin/Documents/SCAL'                              # root path for this data processing
 CCFDIR    = os.path.join(rootpath,'CCF')                                    # dir to store CC data
-DATADIR   = os.path.join(rootpath,'RAW_DATA')                               # dir where noise data is located
+DATADIR   = os.path.join(rootpath,'RAW_DATA')                            # dir where noise data is located
 local_data_path = os.path.join(rootpath,'2016_*')                           # absolute dir where SAC files are stored: this para is VERY IMPORTANT and has to be RIGHT if input_fmt is not h5 for asdf!!!
 locations = os.path.join(DATADIR,'station.txt')                             # station info including network,station,channel,latitude,longitude,elevation: only needed when input_fmt is not h5 for asdf
 
@@ -57,9 +57,9 @@ input_fmt   = 'h5'                                                          # st
 freq_norm   = 'rma'                                                         # 'no' for no whitening, or 'rma' for running-mean average, 'phase_only' for sign-bit normalization in freq domain.
 time_norm   = 'no'                                                          # 'no' for no normalization, or 'rma', 'one_bit' for normalization in time domain
 cc_method   = 'xcorr'                                                       # 'xcorr' for pure cross correlation, 'deconv' for deconvolution; FOR "COHERENCY" PLEASE set freq_norm to "rma", time_norm to "no" and cc_method to "xcorr"
-flag        = True                                                          # print intermediate variables and computing time for debugging purpose
-acorr_only  = False                                                         # only perform auto-correlation 
-xcorr_only  = True                                                          # only perform cross-correlation or not
+flag        = True                                                         # print intermediate variables and computing time for debugging purpose
+acorr_only  = False                                                          # only perform auto-correlation 
+xcorr_only  = True                                                         # only perform cross-correlation or not
 ncomp       = 3                                                             # 1 or 3 component data (needed to decide whether do rotation)
 
 # station/instrument info for input_fmt=='sac' or 'mseed'
@@ -73,13 +73,13 @@ if input_fmt != 'h5':
     locs = pd.read_csv(locations)
 
 # pre-processing parameters 
-cc_len    = 1800                                                            # basic unit of data length for fft (sec)
-step      = 450                                                             # overlapping between each cc_len (sec)
+cc_len    = 1200                                                            # basic unit of data length for fft (sec)
+step      = 400                                                             # overlapping between each cc_len (sec)
 smooth_N  = 10                                                              # moving window length for time/freq domain normalization if selected (points)
 
 # cross-correlation parameters
 maxlag         = 200                                                        # lags of cross-correlation to save (sec)
-substack       = True                                                       # sub-stack daily cross-correlation or not
+substack       = False                                                       # sub-stack daily cross-correlation or not
 substack_len   = cc_len                                                     # how long to stack over (for monitoring purpose): need to be multiples of cc_len
 smoothspect_N  = 10                                                         # moving window length to smooth spectrum amplitude (points)
 
@@ -121,6 +121,7 @@ fc_para={'samp_freq':samp_freq,
          'freqmax':freqmax,
          'freq_norm':freq_norm,
          'time_norm':time_norm,
+         'rm_median':True,
          'cc_method':cc_method,
          'smooth_N':smooth_N,
          'rootpath':rootpath,
@@ -270,17 +271,6 @@ for ick in range (rank,splits,size):
             # channel info 
             comp = source[0].stats.channel
             if comp[-1] =='U': comp.replace('U','Z')
-            if len(source)==0:continue
-
-            # cut daily-long data into smaller segments (dataS always in 2D)
-            trace_stdS,dataS_t,dataS = noise_module.cut_trace_make_stat(fc_para,source)        # optimized version:3-4 times faster
-            if not len(dataS): continue
-            N = dataS.shape[0]
-
-            # do normalization if needed
-            source_white = noise_module.noise_processing(fc_para,dataS)
-            Nfft = source_white.shape[1];Nfft2 = Nfft//2
-            if flag:print('N and Nfft are %d (proposed %d),%d (proposed %d)' %(N,nseg_chunk,Nfft,nnfft))
 
             # keep track of station info to write into parameter section of ASDF files
             station.append(sta)
@@ -290,6 +280,22 @@ for ick in range (rank,splits,size):
             clat.append(lat)
             location.append(loc)
             elevation.append(elv)
+
+            if len(source)==0:
+                iii+=1
+                continue
+
+            # cut daily-long data into smaller segments (dataS always in 2D)
+            trace_stdS,dataS_t,dataS = noise_module.cut_trace_make_stat(fc_para,source)        # optimized version:3-4 times faster
+            if not len(dataS): 
+                iii+=1
+                continue
+            N = dataS.shape[0]
+
+            # do normalization if needed
+            source_white = noise_module.noise_processing(fc_para,dataS)
+            Nfft = source_white.shape[1];Nfft2 = Nfft//2
+            if flag:print('N and Nfft are %d (proposed %d),%d (proposed %d)' %(N,nseg_chunk,Nfft,nnfft))
 
             # load fft data in memory for cross-correlations
             data = source_white[:,:Nfft2]
@@ -326,7 +332,18 @@ for ick in range (rank,splits,size):
         # get index right for auto/cross correlation
         istart=iiS;iend=iii
         if acorr_only:
-            iend=np.minimum(iiS+ncomp,iii)
+            if ncomp==1:
+                iend=np.minimum(iiS+ncomp,iii)
+            else:
+                if (channel[iiS][-1]=='Z'):
+                    istart=iiS-2
+                    iend=np.minimum(iiS+1,iii)
+                elif (channel[iiS][-1]=='N'):
+                    istart=iiS-1
+                    iend=np.minimum(iiS+2,iii)
+                else:
+                    iend=np.minimum(iiS+ncomp,iii)
+            
         if xcorr_only:
             if ncomp==1:
                 istart=np.minimum(iiS+ncomp,iii)

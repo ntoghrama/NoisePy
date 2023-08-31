@@ -11,10 +11,10 @@ setup(version="1.0",
           'obspy',
           'pandas',
           'pyasdf',
-          'python>=3.0',
           'mpi4py',
           'markdown',
       ],
+      python_requires='>=3',
       author="Chengxin Jiang & Marine Denolle",
       author_email="chengxin_jiang@fas.harvard.edu & mdenolle@fas.harvard.edu",
       description="A High-performance Computing Python Package for Ambient Noise Analysis",
@@ -29,4 +29,5 @@ setup(version="1.0",
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.7',
-      )
+      ]
+)
