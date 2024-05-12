@@ -103,7 +103,7 @@ for comp in rtz_system:
     indx = npts//2
 
     if lag_type == 'neg':
-        data = tdata[:indx+1]
+        data = np.flip(tdata[:indx+1],axis=0)
     elif lag_type == 'pos':
         data = tdata[indx:]
     elif lag_type == 'sym':
